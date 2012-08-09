@@ -1,0 +1,17 @@
+<!doctype html>
+<html>
+<head>
+  <script src="re.js/re.js"></script>
+  <script src="thompson.js"></script>
+  <script>
+    var ast = re.parse('abc|de|f');
+    console.info('abstract syntax tree', ast);
+    var dfa = thompson.astToNFA(ast);
+    console.info('determinictis finite automa', dfa);
+    console.info('match', 'abc', '/abc|de|f/', thompson.match('abc', dfa));
+  </script>
+</head>
+<body>
+
+</body>
+</html>

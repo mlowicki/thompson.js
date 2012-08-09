@@ -1,0 +1,3 @@
+[submodule "re.js"]
+	path = re.js
+	url = git://github.com/mlowicki/re.js.git
