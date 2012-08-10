@@ -1,3 +1,6 @@
+/**
+ * Implementation of Thomspon's method for matching regular expressions.
+ */
 var thompson = (function() {
 
   function addIfMatches(c, state, next) {
@@ -8,67 +11,83 @@ var thompson = (function() {
 
   function step(c, current, next) {
     current.forEach(function(state) {
-      if (thompson.isStart(state)) {
-        thompson.isSplit(state.next) ?
-          step(c, [state.next], next) :
-          addIfMatches(c, state.next, next);
+      if (state.out1) {
+        state.out1.value === 'SPLIT' ?
+          step(c, [state.out1], next) :
+          addIfMatches(c, state.out1, next);
       }
-      else if (thompson.isSplit(state)) {
-        thompson.isSplit(state.left) ?
-          step(c, [state.left], next) :
-          addIfMatches(c, state.left, next);
 
-        thompson.isSplit(state.right) ?
-          step(c, [state.right], next) :
-          addIfMatches(c, state.right, next);
-      }
-      else {
-        addIfMatches(c, state.next, next);
+      if (state.out2) {
+        state.out2.value === 'SPLIT' ?
+          step(c, [state.out2], next) :
+          addIfMatches(c, state.out2, next);
       }
     }, this);
   };
 
+  /**
+   * Patches nodes without set output node with specified node.
+   * @param {Array} nodes Nodes to patch.
+   * @param {Object} node NFA's node.
+   */
+  function patch(nodes, out) {
+    nodes.forEach(function(node) {
+      if (node.value === 'SPLIT') {
+        node.out2 = out;
+      }
+      else {
+        node.out1 = out;
+      }
+    });
+  }
+
+  /**
+   * Creates NFA from regep's AST.
+   * @param {Object} ast Regexp's AST.
+   * @param {boolean} success Indicates if current AST's node is successful or not.
+   * @return {Array} First elemnt is start node of NFA, second is list of nodes without set output node.
+   */
   function astToNFA(ast, success) {
-      var left, right;
+      var left, right, node, quantifier;
 
       switch (ast.type) {
         case re.T_CONCAT:
           left = astToNFA(ast.left, false),
           right = astToNFA(ast.right, success);
-
-          left.next = right;
-          return left;
+          patch(left[1], right[0]);
+          return [left[0], right[1]];
         case re.T_CHAR:
-          return { value: ast.value, next: null, success: success };
-        case re.T_OR:
-          left = astToNFA(ast.left, success),
-          right = astToNFA(ast.right, success);
+          node = { value: ast.value, out1: null };
+          success && (node.success = true);
+          return [node, [node]];
+        case re.T_REPEAT:
+          if (ast.quantifier.from === 0 && ast.quantifier.to === 1 && ast.quantifier.special) {
+            left = astToNFA(ast.atom, success);
 
-          return {
-            value: 'split', 
-            left: left,
-            right: right
-          };
+            node = {
+              value: 'SPLIT',
+              out1: left[0],
+              out2: null
+            };
+
+            return [node, left[1].concat(node)];
+          }
+          else {
+            throw new Error('Unsupported quantifier', ast.quantifier);
+          }
+        case re.T_OR:
+          left = astToNFA(ast.left, success);
+          right = astToNFA(ast.right, success);
+          return [
+            { value: 'SPLIT', out1: left[0], out2: right[0] },
+            left[1].concat(right[1])
+          ];
         default:
-          throw new Error('Unrecognized type: ' + ast.type);
+          throw new Error('Unsupported type', ast.type);
       }
   }
 
   return {
-    /**
-     * @param {Object} state NFA's state.
-     * @return {boolean} True if state is of type 'start'.
-     */
-    isStart: function(state) {
-      return state.value === 'start';
-    },
-    /**
-     * @param {Object} state NFA's state.
-     * @return {boolean} True if state is of type 'split'.
-     */
-    isSplit: function(state) {
-      return state.value === 'split';
-    },
     /**
      * Converts regular expression's syntax tree to non-deterministic finite automa.
      * @param {Object} ast Regexp's abstract syntax tree.
@@ -76,18 +95,18 @@ var thompson = (function() {
      */
     astToNFA: function(ast) {
       return {
-        value: 'start',
-        next: astToNFA(ast, true),
-        success: false
+        value: 'START',
+        out1: astToNFA(ast, true)[0]
       };
     },
     /**
+     * Matches specified string against passed regular expression.
      * @param {string} s String to match.
-     * @param {Object} nfa NFA used to match string.
+     * @param {string} regexp Regexp's string.
      * @return {boolean} True if match has been found.
      */
-    match: function(s, nfa) {
-      var current = [nfa],
+    match: function(s, regexp) {
+      var current = [this.astToNFA(re.parse(regexp))],
           next = []; 
 
       for (var i = 0; i < s.length; i++) {
@@ -96,6 +115,7 @@ var thompson = (function() {
         next = [];
       }
 
+      // Checks if  at least one of current state is successful one.
       return current.some(function(node) { return node.success; });
     }
   };

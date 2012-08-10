@@ -2,13 +2,24 @@
 <html>
 <head>
   <script src="re.js/re.js"></script>
+  <script src="test.js/test.js"></script>
+  <script src="test.js/console-test-renderer.js"></script>
   <script src="thompson.js"></script>
   <script>
-    var ast = re.parse('abc|de|f');
-    console.info('abstract syntax tree', ast);
-    var dfa = thompson.astToNFA(ast);
-    console.info('determinictis finite automa', dfa);
-    console.info('match', 'abc', '/abc|de|f/', thompson.match('abc', dfa));
+    test.init(new test.ConsoleTestRenderer);
+    test.true("ab ~ a?b", thompson.match('ab', 'a?b'));
+    test.true("b ~ a?b", thompson.match('b', 'a?b'));
+    test.true("a !~ a?b", !thompson.match('a', 'a?b'));
+    test.true("b ~ a?a?a?a?a?a?b", thompson.match('b', 'a?a?a?a?a?a?b'));
+    test.true("a ~ a|b", thompson.match('a', 'a|b'));
+    test.true("b ~ a|b", thompson.match('b', 'a|b'));
+    test.true("abc ~ abc|def", thompson.match('abc', 'abc|def'));
+    test.true("def ~ abc|def", thompson.match('abc', 'abc|def'));
+    test.true("abc ~ abc|defg?h?i", thompson.match('abc', 'abc|defg?h?i'));
+    test.true("defi ~ abc|defg?h?i", thompson.match('defi', 'abc|defg?h?i'));
+    test.true("defghi ~ abc|defg?h?i", thompson.match('defghi', 'abc|defg?h?i'));
+    test.true("defhi ~ abc|defg?h?i", thompson.match('defhi', 'abc|defg?h?i'));
+    test.true("defh !~ abc|defg?h?i", !thompson.match('defh', 'abc|defg?h?i'));
   </script>
 </head>
 <body>

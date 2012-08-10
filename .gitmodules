@@ -1,3 +1,6 @@
 [submodule "re.js"]
 	path = re.js
 	url = git://github.com/mlowicki/re.js.git
+[submodule "test.js"]
+	path = test.js
+	url = git://github.com/mlowicki/test.js.git
